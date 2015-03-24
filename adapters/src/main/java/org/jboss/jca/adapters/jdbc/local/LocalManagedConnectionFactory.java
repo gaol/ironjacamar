@@ -31,7 +31,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
-import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.sql.Connection;
@@ -44,7 +43,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
-import java.util.concurrent.ConcurrentHashMap;
 
 import javax.resource.ResourceException;
 import javax.resource.spi.ConnectionManager;
@@ -81,8 +79,6 @@ public class LocalManagedConnectionFactory extends BaseWrapperManagedConnectionF
 
    /** The connection properties */
    protected final Properties connectionProps = new Properties();
-
-   private static Map<String, Driver> driverCache = new ConcurrentHashMap<String, Driver>();
 
    private static boolean preferDataSourceClass = false;
 
@@ -627,27 +623,18 @@ public class LocalManagedConnectionFactory extends BaseWrapperManagedConnectionF
          throw new ResourceException("No Driver class specified (url = " + url + ")!");
       }
 
-      String driverKey = url.substring(0, url.indexOf(":", 6));
-
-      // Check if the driver is already loaded, if not then try to load it
-      driver = driverCache.get(driverKey);
-      if (driver != null)
-         return driver;
-
       try
       {
+         if (isDriverLoadedForURL(url))
+             return driver;
+
          // Load class to trigger static initialization of the driver
          Class<?> clazz = Class.forName(driverClass, true, getClassLoaderPlugin().getClassLoader());
-
-         if (isDriverLoadedForURL(url))
-            return driver;
-
          driver = (Driver)clazz.newInstance();
 
          DriverManager.registerDriver(driver);
          log.debug("Driver loaded and instance created:" + driver);
 
-         driverCache.put(driverKey, driver);
       }
       catch (Exception e)
       {
