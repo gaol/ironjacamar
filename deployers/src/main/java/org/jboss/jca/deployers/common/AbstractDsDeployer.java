@@ -66,7 +66,7 @@ import org.jboss.jca.deployers.DeployersLogger;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.security.AccessController;
-import java.security.PrivilegedAction;
+import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -1451,11 +1451,12 @@ public abstract class AbstractDsDeployer
     * @param mcf The managed connection factory
     * @param jndiName The jndi-name of the data-source
     * @return The subject; <code>null</code> in case of an error
+    * @throws the exception when creating the <code>Subject</code>
     */
    protected Subject createSubject(final SubjectFactory subjectFactory,
                                    final String securityDomain,
                                    final ManagedConnectionFactory mcf,
-                                   final String jndiName)
+                                   final String jndiName) throws Exception
    {
       if (subjectFactory == null)
          throw new IllegalArgumentException("SubjectFactory is null");
@@ -1463,34 +1464,25 @@ public abstract class AbstractDsDeployer
       if (securityDomain == null)
          throw new IllegalArgumentException("SecurityDomain is null");
 
-      return AccessController.doPrivileged(new PrivilegedAction<Subject>()
+      return AccessController.doPrivileged(new PrivilegedExceptionAction<Subject>()
       {
-         public Subject run()
+         public Subject run() throws Exception
          {
-            try
-            {
-               Subject subject = subjectFactory.createSubject(securityDomain);
+             Subject subject = subjectFactory.createSubject(securityDomain);
 
-               Set<PasswordCredential> pcs = subject.getPrivateCredentials(PasswordCredential.class);
-               if (pcs.size() > 0)
-               {
-                  for (PasswordCredential pc : pcs)
-                  {
-                     pc.setManagedConnectionFactory(mcf);
-                  }
-               }
+             Set<PasswordCredential> pcs = subject.getPrivateCredentials(PasswordCredential.class);
+             if (pcs.size() > 0)
+             {
+                for (PasswordCredential pc : pcs)
+                {
+                   pc.setManagedConnectionFactory(mcf);
+                }
+             }
 
-               if (log.isDebugEnabled())
-                  log.debug("Subject=" + subject);
+             if (log.isDebugEnabled())
+                log.debug("Subject=" + subject);
 
-               return subject;
-            }
-            catch (Throwable t)
-            {
-               log.error("Exception during createSubject() for " + jndiName + ": " + t.getMessage(), t);
-            }
-
-            return null;
+             return subject;
          }
       });
    }
