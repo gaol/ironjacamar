@@ -62,8 +62,8 @@ public class Semaphore extends java.util.concurrent.Semaphore
    @Override
    public boolean tryAcquire(long timeout, TimeUnit unit) throws InterruptedException
    {
-      if (statistics.isEnabled())
-         statistics.setMaxWaitCount(getQueueLength());
+      if (statistics.isEnabled() && availablePermits() == 0)
+         statistics.setMaxWaitCount(getQueueLength() + 1);
 
       boolean result = super.tryAcquire(timeout, unit);
 
